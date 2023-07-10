@@ -8,6 +8,8 @@ import json
 import logging
 import pathlib
 import sys
+import os
+import subprocess
 
 def generate_crates(srctree, objtree, sysroot_src):
     # Generate the configuration list.
@@ -65,7 +67,15 @@ def generate_crates(srctree, objtree, sysroot_src):
         [],
         is_proc_macro=True,
     )
-    crates[-1]["proc_macro_dylib_path"] = "rust/libmacros.so"
+
+    rustc = os.getenv("RUSTC", "rustc")
+    libmacros_path = subprocess.run(
+        f"{rustc} --print file-names --crate-name macros --crate-type proc-macro -".split(),
+        stdin=subprocess.DEVNULL,
+        capture_output=True
+    ).stdout.decode().strip()
+    libmacros_path = f"rust/{libmacros_path}"
+    crates[-1]["proc_macro_dylib_path"] = libmacros_path
 
     append_crate(
         "build_error",
