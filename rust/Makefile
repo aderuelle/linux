@@ -33,6 +33,10 @@ obj-$(CONFIG_RUST_KERNEL_KUNIT_TEST) += doctests_kernel_generated_kunit.o
 # Avoids running `$(RUSTC)` for the sysroot when it may not be available.
 ifdef CONFIG_RUST
 
+_crate := $(shell echo | $(RUSTC) --print file-names --crate-name _ --crate-type proc-macro -)
+procmacro_crate_suffix := $(suffix $(_crate))
+procmacro_crate_prefix := $(subst _$(procmacro_crate_suffix),,$(_crate))
+
 always-$(CONFIG_RUST) += libmacros.so
 no-clean-files += libmacros.so
 
