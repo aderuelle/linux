@@ -36,9 +36,10 @@ ifdef CONFIG_RUST
 _crate := $(shell echo | $(RUSTC) --print file-names --crate-name _ --crate-type proc-macro -)
 procmacro_crate_suffix := $(suffix $(_crate))
 procmacro_crate_prefix := $(subst _$(procmacro_crate_suffix),,$(_crate))
+macros_crate := $(procmacro_crate_prefix)macros$(procmacro_crate_suffix)
 
-always-$(CONFIG_RUST) += libmacros.so
-no-clean-files += libmacros.so
+always-$(CONFIG_RUST) += $(macros_crate)
+no-clean-files += $(macros_crate)
 
 # `$(rust_flags)` is passed in case the user added `--sysroot`.
 rustc_sysroot := $(shell $(RUSTC) $(rust_flags) --print sysroot)
@@ -127,10 +128,10 @@ rustdoc-alloc: $(src)/alloc/lib.rs rustdoc-core rustdoc-compiler_builtins FORCE
 	$(call if_changed,rustdoc)
 
 rustdoc-kernel: private rustc_target_flags = --extern alloc \
-    --extern build_error --extern macros=$(objtree)/$(obj)/libmacros.so \
+    --extern build_error --extern macros=$(objtree)/$(obj)/$(macros_crate) \
     --extern bindings --extern uapi
 rustdoc-kernel: $(src)/kernel/lib.rs rustdoc-core rustdoc-macros \
-    rustdoc-compiler_builtins rustdoc-alloc $(obj)/libmacros.so \
+    rustdoc-compiler_builtins rustdoc-alloc $(obj)/$(macros_crate) \
     $(obj)/bindings.o FORCE
 	$(call if_changed,rustdoc)
 
@@ -387,12 +388,12 @@ quiet_cmd_rustc_procmacro = $(RUSTC_OR_CLIPPY_QUIET) P $@
 	$(RUSTC_OR_CLIPPY) $(rust_common_flags) \
 		--emit=dep-info=$(depfile) --emit=link=$@ --extern proc_macro \
 		--crate-type proc-macro \
-		--crate-name $(patsubst lib%.so,%,$(notdir $@)) $<
+		--crate-name $(patsubst $(procmacro_crate_prefix)%$(procmacro_crate_suffix),%,$(notdir $@)) $<
 
 # Procedural macros can only be used with the `rustc` that compiled it.
 # Therefore, to get `libmacros.so` automatically recompiled when the compiler
 # version changes, we add `core.o` as a dependency (even if it is not needed).
-$(obj)/libmacros.so: $(src)/macros/lib.rs $(obj)/core.o FORCE
+$(obj)/$(macros_crate): $(src)/macros/lib.rs $(obj)/core.o FORCE
 	$(call if_changed_dep,rustc_procmacro)
 
 quiet_cmd_rustc_library = $(if $(skip_clippy),RUSTC,$(RUSTC_OR_CLIPPY_QUIET)) L $@
@@ -460,7 +461,7 @@ $(obj)/uapi.o: $(src)/uapi/lib.rs \
 $(obj)/kernel.o: private rustc_target_flags = --extern alloc \
     --extern build_error --extern macros --extern bindings --extern uapi
 $(obj)/kernel.o: $(src)/kernel/lib.rs $(obj)/alloc.o $(obj)/build_error.o \
-    $(obj)/libmacros.so $(obj)/bindings.o $(obj)/uapi.o FORCE
+    $(obj)/$(macros_crate) $(obj)/bindings.o $(obj)/uapi.o FORCE
 	$(call if_changed_dep,rustc_library)
 
 endif # CONFIG_RUST
