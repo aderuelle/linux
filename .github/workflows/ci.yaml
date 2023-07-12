@@ -1,0 +1,56 @@
+on:
+  pull_request: {}
+  push:
+
+jobs:
+  ci-macos11:
+    runs-on: macos-11
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: linux
+      - name: Checkout vgribov/mac-linux-headers
+        uses: actions/checkout@v3
+        with:
+          path: mac-linux-headers
+          repository: vgribov/mac-linux-headers
+      - name: Install prerequisites
+        run: brew install make gnu-sed findutils libelf llvm@14
+      - name: Install bindgen
+        run: |
+          bindgen_formula_sha1="7bfec8f16254fcbc725d50f23f3dea8269d8fba7"
+          curl -O https://raw.githubusercontent.com/Homebrew/homebrew-core/${bindgen_formula_sha1}/Formula/bindgen.rb && \
+          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew reinstall --formula ./bindgen.rb
+      - name: Plugging GNU version of sed, awk, find, make and brew version of bindgine
+        run: |
+          brewprefix=$(brew --prefix)
+          buildplug=$GITHUB_WORKSPACE/build-plug
+          mkdir -p "${buildplug}"
+          ln -s "${brewprefix}/bin/gsed" "${buildplug}/sed"
+          ln -s "${brewprefix}/bin/gawk" "${buildplug}/awk"
+          ln -s "${brewprefix}/bin/gfind" "${buildplug}/find"
+          ln -s "${brewprefix}/bin/gmake" "${buildplug}/make"
+          ln -s "${brewprefix}/bin/bindgen" "${buildplug}/bindgen"
+      - name: Building kernel
+        run: |
+          brewprefix=$(brew --prefix)
+          srctree=$GITHUB_WORKSPACE/linux
+          builddir=$GITHUB_WORKSPACE/build
+          buildplug=$GITHUB_WORKSPACE/build-plug
+          extraheaders=$GITHUB_WORKSPACE/mac-linux-headers:${brewprefix}/include
+          llvm_formula=llvm@14
+          toolchain="$(brew --cellar ${llvm_formula})/$(brew info --json ${llvm_formula} | jq -r '.[0].versions.stable')"
+          mkdir ${builddir}
+          cd ${builddir}
+          rustup override set 1.70.0
+          rustup component add cargo clippy rust-docs rust-src rust-std rustc rustfmt
+          cp $GITHUB_WORKSPACE/linux/.github/workflows/kernel-arm64-release.config .config
+          PATH=${buildplug}:${toolchain}/bin:$PATH \
+          make -j3 -C ${srctree} \
+            O=${builddir} LLVM=1 ARCH=arm64 \
+            C_INCLUDE_PATH=${extraheaders} \
+            HOSTCFLAGS="-D_UUID_T -D__GETHOSTUUID_H -DEM_AARCH64=183 -DSTT_SPARC_REGISTER=13" \
+            rust/
