@@ -19,6 +19,8 @@ jobs:
           repository: vgribov/mac-linux-headers
       - name: Install prerequisites
         run: brew install make gnu-sed findutils libelf coreutils llvm@14
+      - name: Checking make version
+        run: /usr/local/opt/make/libexec/gnubin/make --version
       - name: Plugging GNU version of sed, awk, find, make
         run: |
           brewprefix=$(brew --prefix)
