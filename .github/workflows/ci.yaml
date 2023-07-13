@@ -45,15 +45,6 @@ jobs:
           rustup component add cargo clippy rust-docs rust-src rust-std rustc rustfmt
           cp $GITHUB_WORKSPACE/linux/.github/workflows/kernel-arm64-release.config .config
           PATH=${buildplug}:${toolchain}/bin:$PATH \
-          which make
-          PATH=${buildplug}:${toolchain}/bin:$PATH \
-          make --version
-          PATH=${buildplug}:${toolchain}/bin:$PATH \
-          make -j3 -C ${srctree} \
-            O=${builddir} LLVM=1 ARCH=arm64 \
-            C_INCLUDE_PATH=${extraheaders} \
-            HOSTCFLAGS="-D_UUID_T -D__GETHOSTUUID_H -DEM_AARCH64=183 -DSTT_SPARC_REGISTER=13" \
-            rustavailable
           make -j3 -C ${srctree} \
             O=${builddir} LLVM=1 ARCH=arm64 \
             C_INCLUDE_PATH=${extraheaders} \
