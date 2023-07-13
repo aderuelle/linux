@@ -18,7 +18,7 @@ jobs:
           path: mac-linux-headers
           repository: vgribov/mac-linux-headers
       - name: Install prerequisites
-        run: brew install make gnu-sed findutils libelf coreutils llvm@14
+        run: brew install make gnu-sed findutils libelf coreutils
       - name: Checking make version
         run: /usr/local/opt/make/libexec/gnubin/make --version
       - name: Plugging GNU version of sed, awk, find, make
@@ -37,7 +37,7 @@ jobs:
           builddir=$GITHUB_WORKSPACE/build
           buildplug=$GITHUB_WORKSPACE/build-plug
           extraheaders=$GITHUB_WORKSPACE/mac-linux-headers:${brewprefix}/include
-          llvm_formula=llvm@14
+          llvm_formula=llvm@15
           toolchain="$(brew --cellar ${llvm_formula})/$(brew info --json ${llvm_formula} | jq -r '.[0].versions.stable')"
           mkdir ${builddir}
           cd ${builddir}
