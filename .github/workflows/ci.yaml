@@ -39,7 +39,7 @@ jobs:
           toolchain="$(brew --cellar ${llvm_formula})/$(brew info --json ${llvm_formula} | jq -r '.[0].versions.stable')"
           mkdir ${builddir}
           cd ${builddir}
-          rustup override set 1.68.1
+          rustup override set 1.68.2
           rustup component add cargo clippy rust-docs rust-src rust-std rustc rustfmt
           cp $GITHUB_WORKSPACE/linux/.github/workflows/kernel-arm64-release.config .config
           PATH=${buildplug}:${toolchain}/bin:$PATH \
