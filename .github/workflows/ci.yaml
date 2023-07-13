@@ -19,11 +19,6 @@ jobs:
           repository: vgribov/mac-linux-headers
       - name: Install prerequisites
         run: brew install make gnu-sed findutils libelf llvm@14
-      - name: Install bindgen
-        run: |
-          bindgen_formula_sha1="7bfec8f16254fcbc725d50f23f3dea8269d8fba7"
-          curl -O https://raw.githubusercontent.com/Homebrew/homebrew-core/${bindgen_formula_sha1}/Formula/bindgen.rb && \
-          HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew reinstall --formula ./bindgen.rb
       - name: Plugging GNU version of sed, awk, find, make and brew version of bindgine
         run: |
           brewprefix=$(brew --prefix)
@@ -33,7 +28,6 @@ jobs:
           ln -s "${brewprefix}/bin/gawk" "${buildplug}/awk"
           ln -s "${brewprefix}/bin/gfind" "${buildplug}/find"
           ln -s "${brewprefix}/bin/gmake" "${buildplug}/make"
-          ln -s "${brewprefix}/bin/bindgen" "${buildplug}/bindgen"
       - name: Building kernel
         run: |
           brewprefix=$(brew --prefix)
