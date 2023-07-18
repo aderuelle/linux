@@ -6,12 +6,11 @@ on:
 
 jobs:
   ci:
-    runs-on: ubuntu-20.04
-    container: ghcr.io/rust-for-linux/ci:Rust-1.70.0
     timeout-minutes: 25
 
     strategy:
       matrix:
+        os: [ubuntu-20.04]
         arch: [arm, arm64, ppc64le, riscv64, x86_64]
         toolchain: [gcc, clang, llvm]
         config: [debug, release]
@@ -44,58 +43,82 @@ jobs:
         #   - Whether to use a custom sysroot.
         #   - Explicitly enabling `lto` on platforms which support LTO.
         include:
-          - arch: arm64
+          - os: ubuntu-20.04
+            arch: arm64
             toolchain: gcc
             config: debug
             output: build
             sysroot: custom
             lto: none
 
-          - arch: arm64
+          - os: ubuntu-20.04
+            arch: arm64
             toolchain: llvm
             config: debug
             output: build
             sysroot: custom
             lto: thin
 
-          - arch: arm64
+          - os: ubuntu-20.04
+            arch: arm64
             toolchain: llvm
             config: release
             output: build
             sysroot: custom
             lto: thin
 
-          - arch: ppc64le
+          - os: ubuntu-20.04
+            arch: ppc64le
             toolchain: clang
             config: release
             output: build
             sysroot: common
             lto: none
 
-          - arch: x86_64
+          - os: ubuntu-20.04
+            arch: x86_64
             toolchain: llvm
             config: debug
             output: build
             sysroot: custom
             lto: none
 
-          - arch: x86_64
+          - os: ubuntu-20.04
+            arch: x86_64
             toolchain: llvm
             config: debug
             output: src
             sysroot: common
             lto: thin
 
-          - arch: x86_64
+          - os: ubuntu-20.04
+            arch: x86_64
             toolchain: llvm
             config: release
             output: src
             sysroot: common
             lto: thin
 
+          - os: macos-11
+            arch: arm64
+            toolchain: llvm
+            config: release
+            output: build
+            sysroot: common
+            lto: none
+
+    runs-on: ${{ matrix.os }}
+    container: ${{ !startsWith(matrix.os, 'macos') && 'ghcr.io/rust-for-linux/ci:Rust-1.70.0' || '' }}
+
     steps:
       # Setup: checkout
       - uses: actions/checkout@v3
+
+      - if: startsWith(matrix.os, 'macos')
+        uses: actions/checkout@v3
+        with:
+          path: mac-linux-headers
+          repository: vgribov/mac-linux-headers
 
       # Setup: Store matrix name
       - run: echo 'MATRIX_NAME=${{ matrix.arch }}-${{ matrix.toolchain }}-${{ matrix.config }}' >> $GITHUB_ENV
@@ -176,8 +199,17 @@ jobs:
       #
       # Note that the commands need to be in their own `run` to have
       # `$HOME` visible for the second one.
-      - run: echo 'HOME=/root' >> $GITHUB_ENV
-      - run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      #
+      # skip on macOs as /root is not writable on this kind of host
+      #
+      - if: ${{ !startsWith(matrix.os, 'macos') }}
+        run: echo 'HOME=/root' >> $GITHUB_ENV
+      - if: ${{ !startsWith(matrix.os, 'macos') }}
+        run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+      - if: startsWith(matrix.os, 'macos')
+        run: |
+          rustup component add rust-docs rust-src
+          cargo install -j3 --force --locked --version 0.56.0 bindgen
 
       - if: matrix.sysroot == 'custom'
         run: |
@@ -190,14 +222,40 @@ jobs:
           mkdir $(rustc ${{ env.RUSTC_SYSROOT }} --print sysroot)
           ln -s $(rustc --print sysroot)/lib $(rustc ${{ env.RUSTC_SYSROOT }} --print sysroot)/lib
 
+      # Setup: macOS prerequisites
+      - if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install make gnu-sed gawk findutils libelf coreutils ccache
+          echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
+          echo "$(brew --prefix gnu-sed)/libexec/gnubin" >> $GITHUB_PATH
+          echo "$(brew --prefix gawk)/libexec/gnubin" >> $GITHUB_PATH
+          echo "$(brew --prefix findutils)/libexec/gnubin" >> $GITHUB_PATH
+
+      # Setup: use llvm-brew on macOS
+      - if: startsWith(matrix.os, 'macos')
+        run: |
+          llvm_formula="llvm@15"
+          llvm_prefix="$(brew --cellar ${llvm_formula})/$(brew info --json ${llvm_formula} | jq -r '.[0].versions.stable')"
+          echo "${llvm_prefix}/bin" >> $GITHUB_PATH
+
       # Setup: ccache
-      - run: |
+      - if: ${{ !startsWith(matrix.os, 'macos') }}
+        run: |
           echo '/usr/lib/ccache' >> $GITHUB_PATH
+      - if: startsWith(matrix.os, 'macos')
+        run: |
+          echo "$(brew --prefix ccache)/libexec" >> $GITHUB_PATH
 
       # Setup: Check existing ccache
       - run: ccache -s
 
-      # Setup: module parameters test
+      # Setup: macOS build environment
+      - if: startsWith(matrix.os, 'macos')
+        run: |
+          echo "C_INCLUDE_PATH=$GITHUB_WORKSPACE/mac-linux-headers:$(brew --prefix)/include" >> $GITHUB_ENV
+          echo 'HOSTCFLAGS=-D_UUID_T -D__GETHOSTUUID_H -DEM_AARCH64=183 -DSTT_SPARC_REGISTER=13' >> $GITHUB_ENV
+
+       # Setup: module parameters test
       - run: |
           cp samples/rust/rust_module_parameters.rs samples/rust/rust_module_parameters_builtin_default.rs
           cp samples/rust/rust_module_parameters.rs samples/rust/rust_module_parameters_builtin_custom.rs
