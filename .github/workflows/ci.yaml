@@ -192,7 +192,7 @@ jobs:
 
       # Setup: ccache
       - run: |
-          echo '/usr/lib/ccache:$PATH' >> $GITHUB_PATH
+          echo '/usr/lib/ccache' >> $GITHUB_PATH
 
       # Setup: Check existing ccache
       - run: ccache -s
