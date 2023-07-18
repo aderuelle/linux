@@ -225,7 +225,7 @@ jobs:
       # Setup: install macOS 'brewed' prerequisites
       - if: startsWith(matrix.os, 'macos')
         run: |
-          brew install make gnu-sed gawk findutils libelf coreutils ccache qemu
+          brew install make gnu-sed gawk findutils libelf coreutils ccache binutils qemu
           echo "$(brew --prefix make)/libexec/gnubin" >> $GITHUB_PATH
           echo "$(brew --prefix gnu-sed)/libexec/gnubin" >> $GITHUB_PATH
           echo "$(brew --prefix gawk)/libexec/gnubin" >> $GITHUB_PATH
@@ -456,6 +456,11 @@ jobs:
           grep '] rust_selftests: All tests passed. Congratulations!$' qemu-stdout.log
           grep '] rust_selftests: Rust self tests (exit)$' qemu-stdout.log
 
+      # Report: on macOS, add binutils to path for a compatible 'size' program
+      - if: startsWith(matrix.os, 'macos')
+        run: |
+          echo "$(brew --prefix binutils)/bin" >> $GITHUB_PATH
+
       # Report
       - run: |
           cat ${{ env.BUILD_DIR }}.config
@@ -472,6 +477,11 @@ jobs:
             ${{ env.BUILD_DIR }}samples/rust/*.ko \
             ${{ env.BUILD_DIR }}rust/*.o \
             ${{ env.BUILD_DIR }}vmlinux
+
+      # Report: on macOS, remove binutils path
+      - if: startsWith(matrix.os, 'macos')
+        run: |
+          sed -i "\|$(brew --prefix binutils)/bin|d" $GITHUB_PATH
 
       # Clippy
       - run: make ${{ env.MAKE_ARCH }} ${{ env.MAKE_CROSS_COMPILE }} ${{ env.MAKE_LLVM_IAS }} ${{ env.MAKE_TOOLCHAIN }} ${{ env.MAKE_OUTPUT }} ${{ env.MAKE_SYSROOT }} -j3 CLIPPY=1
