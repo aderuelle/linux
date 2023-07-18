@@ -231,6 +231,30 @@ jobs:
           echo "$(brew --prefix gawk)/libexec/gnubin" >> $GITHUB_PATH
           echo "$(brew --prefix findutils)/libexec/gnubin" >> $GITHUB_PATH
 
+      # Setup: fix sorttable build warning on macOS due to libelf type definition
+      # on macOS uint64_t is defined as 'unsigned long long' vs. 'unsigned long' for other Elf types
+      # for C99 both types have the same size on 64bits systems
+      - if: startsWith(matrix.os, 'macos')
+        run: |
+          cd $(brew --prefix libelf)
+          patch -p0 << 'OEF'
+          --- include/libelf/sys_elf.h	2023-07-18 23:35:12.000000000 +0200
+          +++ include/libelf/sys_elf.h	2023-07-18 23:36:11.000000000 +0200
+          @@ -49,7 +49,11 @@
+           #define __libelf_i64_t long
+           
+           /* Define to a 64-bit unsigned integer type if one exists */
+          -#define __libelf_u64_t unsigned long
+          +#ifdef _U_INT64_T
+          +# define __libelf_u64_t u_int64_t
+          +#else
+          +# define __libelf_u64_t unsigned long
+          +#endif
+           
+           /* Define to a 32-bit signed integer type if one exists */
+           #define __libelf_i32_t int
+          EOF
+
       # Setup: hack-install busybox on macOS from ALARM mirror
       - if:
         run: |
